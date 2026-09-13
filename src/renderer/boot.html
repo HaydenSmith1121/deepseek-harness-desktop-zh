@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'"
+    />
+    <title>DeepSeek Harness 桌面端</title>
+    <link rel="stylesheet" href="boot.css" />
+  </head>
+  <body>
+    <div class="app" id="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" id="brandMark" aria-hidden="true"></span>
+          <span class="brand-text">
+            <strong>DeepSeek Harness</strong>
+            <em>桌面端</em>
+          </span>
+        </div>
+        <div class="topbar-right">
+          <span class="badge" id="stateBadge" data-state="idle">准备中</span>
+          <button class="icon-btn" id="btnTheme" type="button" title="切换浅色 / 深色">◐</button>
+        </div>
+      </header>
+
+      <main class="stage" id="stage">
+        <div class="stage-inner">
+        <section class="hero">
+          <div class="hero-orb" id="heroOrb" data-state="idle" aria-hidden="true">
+            <span class="orb-ring"></span>
+            <span class="orb-core"></span>
+          </div>
+          <h1 id="heroTitle">正在启动 DeepSeek Harness</h1>
+          <p id="heroSub">正在检查运行时并拉起本地服务，通常需要 5–15 秒。</p>
+        </section>
+
+        <ol class="steps" id="steps"></ol>
+
+        <section class="errorcard" id="errorCard" hidden>
+          <div class="errorcard-head">
+            <span class="err-dot" aria-hidden="true"></span>
+            <strong id="errTitle">启动失败</strong>
+            <code id="errCode"></code>
+          </div>
+          <p class="err-msg" id="errMsg"></p>
+          <p class="err-hint" id="errHint"></p>
+          <pre class="err-detail" id="errDetail" hidden></pre>
+        </section>
+
+        <dl class="meta" id="meta"></dl>
+
+        <section class="actions">
+          <button class="btn primary" id="btnOpen" type="button" hidden>进入主界面</button>
+          <button class="btn danger" id="btnRetry" type="button" hidden>重试启动</button>
+          <button class="btn" id="btnLogs" type="button">查看日志</button>
+          <button class="btn" id="btnSettings" type="button">设置</button>
+          <button class="btn ghost" id="btnDiag" type="button">复制诊断信息</button>
+          <button class="btn ghost" id="btnHide" type="button">最小化到托盘</button>
+        </section>
+
+        <section class="logs" id="logs" hidden>
+          <div class="logs-head">
+            <span class="logs-title">运行日志</span>
+            <div class="logs-tools">
+              <label class="check"><input type="checkbox" id="logFollow" checked /><span>自动滚动</span></label>
+              <button class="link" id="btnLogClear" type="button">清空</button>
+              <button class="link" id="btnLogFile" type="button">打开日志文件</button>
+              <button class="link" id="btnLogFolder" type="button">打开目录</button>
+              <button class="link" id="btnLogClose" type="button">收起</button>
+            </div>
+          </div>
+          <pre class="logview" id="logview" tabindex="0"></pre>
+        </section>
+      </main>
+
+      <footer class="foot">
+        <span id="footInfo">—</span>
+        <nav>
+          <a href="#" data-ext="https://github.com/HaydenSmith1121/deepseek-harness-desktop-zh">项目仓库</a>
+          <a href="#" data-ext="https://github.com/deepseek-ai/deepseek-harness">官方 Harness</a>
+          <a href="#" data-ext="https://github.com/HaydenSmith1121/deepseek-harness-desktop-zh/issues">反馈问题</a>
+        </nav>
+      </footer>
+    </div>
+
+    <div class="scrim" id="scrim" hidden></div>
+
+    <aside class="drawer" id="settingsDrawer" aria-hidden="true">
+      <header class="drawer-head">
+        <h2>设置</h2>
+        <button class="icon-btn" id="settingsClose" type="button" title="关闭">✕</button>
+      </header>
+
+      <div class="drawer-body">
+        <section class="field-group">
+          <h3>运行时</h3>
+          <label class="field">
+            <span class="label">来源</span>
+            <select id="setRuntimeMode">
+              <option value="auto">自动（本机 → 内置 → npx）</option>
+              <option value="local">仅使用本机已安装的 dsh</option>
+              <option value="bundled">仅使用应用内置副本</option>
+              <option value="npx">通过 npx 临时拉取</option>
+            </select>
+            <small>本机已装 dsh 时优先复用，启动最快，并沿用你现有的登录与历史会话。</small>
+          </label>
+          <label class="field">
+            <span class="label">dsh 路径</span>
+            <input type="text" id="setDshPath" placeholder="留空自动探测，可填包目录 / lib/bin.js / dsh 启动器" />
+          </label>
+          <label class="field">
+            <span class="label">Node 路径</span>
+            <input type="text" id="setNodePath" placeholder="留空自动探测（需要 v22.19 或更高）" />
+          </label>
+        </section>
+
+        <section class="field-group">
+          <h3>服务</h3>
+          <div class="field-row">
+            <label class="field">
+              <span class="label">监听地址</span>
+              <input type="text" id="setHost" placeholder="127.0.0.1" />
+            </label>
+            <label class="field">
+              <span class="label">端口</span>
+              <input type="number" id="setPort" min="0" max="65535" placeholder="0" />
+            </label>
+          </div>
+          <small class="group-hint">端口填 0 表示每次自动挑一个空闲端口；固定端口便于你收藏地址，但被占用时会启动失败。</small>
+          <label class="field">
+            <span class="label">附加启动参数</span>
+            <input type="text" id="setExtraArgs" placeholder='例如 --trusted-host 127.0.0.1:3080' />
+          </label>
+          <label class="field">
+            <span class="label">代理（仅注入 harness 子进程）</span>
+            <input type="text" id="setProxy" placeholder="例如 http://127.0.0.1:7897" />
+            <small>安装插件、访问外部模型接口时会用到。桌面壳自身不经过代理。</small>
+          </label>
+        </section>
+
+        <section class="field-group">
+          <h3>外观与行为</h3>
+          <label class="field">
+            <span class="label">主题</span>
+            <select id="setTheme">
+              <option value="system">跟随系统</option>
+              <option value="light">浅色</option>
+              <option value="dark">深色</option>
+            </select>
+          </label>
+          <label class="toggle"><input type="checkbox" id="setCloseToTray" /><span>关闭窗口时最小化到托盘</span></label>
+          <label class="toggle"><input type="checkbox" id="setAutoRestart" /><span>服务异常退出后自动重启</span></label>
+          <label class="toggle"><input type="checkbox" id="setOpenAtLogin" /><span>开机自动启动</span></label>
+          <label class="toggle"><input type="checkbox" id="setShowLogsOnBoot" /><span>进入界面时展开日志面板</span></label>
+        </section>
+
+        <section class="field-group">
+          <h3>环境信息</h3>
+          <dl class="info" id="envInfo"></dl>
+        </section>
+      </div>
+
+      <footer class="drawer-foot">
+        <button class="btn primary" id="settingsSave" type="button">保存并应用</button>
+        <button class="btn" id="settingsReset" type="button">恢复默认</button>
+        <button class="btn ghost" id="btnCheckUpdate" type="button">检查 dsh 更新</button>
+        <span class="save-hint" id="saveHint"></span>
+      </footer>
+    </aside>
+
+    <div class="toast" id="toast" hidden></div>
+
+    <script src="boot.js"></script>
+  </body>
+</html>

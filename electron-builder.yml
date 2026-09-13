@@ -1,0 +1,74 @@
+appId: com.haydensmith.dsh-desktop
+productName: DeepSeek Harness Desktop
+copyright: Copyright © 2026 HaydenSmith1121
+
+directories:
+  buildResources: build
+  output: release
+
+# 只打包运行必需的源码与资源，避免把测试、脚本、文档塞进安装包
+files:
+  - src/**/*
+  - assets/**/*
+  - package.json
+  - '!**/*.map'
+  - '!**/*.log'
+  - '!**/.gitkeep'
+
+# 内置的 dsh 运行时（构建期由 scripts/fetch-dsh.mjs 准备）
+# 有了它，即使目标机器没装 Node 和 dsh，应用也能自己跑起来
+extraResources:
+  - from: vendor/dsh
+    to: dsh
+    filter:
+      - '**/*'
+      - '!.gitkeep'
+
+win:
+  icon: build/icon.ico
+  executableName: DeepSeekHarnessDesktop
+  # zip 目标在 electron-builder 里没有专属配置节，用 win 级 artifactName 兜底命名；
+  # nsis / portable 各自有 artifactName，会覆盖这里的值。
+  artifactName: DSH-Desktop-${version}-win-${arch}.${ext}
+  target:
+    # 安装包
+    - target: nsis
+      arch: [x64]
+    # 免安装绿色版（单文件可执行）
+    - target: portable
+      arch: [x64]
+    # 免安装绿色版（解压目录，启动更快）
+    - target: zip
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: DeepSeek Harness 桌面端
+  uninstallDisplayName: DeepSeek Harness 桌面端
+  deleteAppDataOnUninstall: false
+  artifactName: DSH-Desktop-Setup-${version}.${ext}
+
+portable:
+  artifactName: DSH-Desktop-${version}-portable.${ext}
+  unicode: true
+
+# 预留：macOS / Linux 目标（尚未实机验证，仅用于后续扩展）
+mac:
+  icon: build/icon.png
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+
+linux:
+  icon: build/icon.png
+  category: Development
+  target:
+    - target: AppImage
+      arch: [x64]
+
+publish: null

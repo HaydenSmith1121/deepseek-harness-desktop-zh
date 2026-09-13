@@ -1,0 +1,49 @@
+{
+  "name": "deepseek-harness-desktop-zh",
+  "productName": "DeepSeek Harness Desktop",
+  "version": "1.0.0",
+  "description": "DeepSeek Harness (dsh) 的桌面端封装：零侵入内嵌官方 Web UI，双击即用，无需终端。",
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "agent",
+    "electron",
+    "desktop",
+    "中文"
+  ],
+  "main": "src/main/index.js",
+  "author": {
+    "name": "HaydenSmith1121",
+    "url": "https://github.com/HaydenSmith1121"
+  },
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HaydenSmith1121/deepseek-harness-desktop-zh.git"
+  },
+  "bugs": {
+    "url": "https://github.com/HaydenSmith1121/deepseek-harness-desktop-zh/issues"
+  },
+  "homepage": "https://github.com/HaydenSmith1121/deepseek-harness-desktop-zh#readme",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test": "node --test",
+    "icons": "node scripts/make-icons.mjs",
+    "fetch:dsh": "node scripts/fetch-dsh.mjs",
+    "self-test": "electron . --self-test",
+    "self-test:ui": "electron . --self-test-ui",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win",
+    "dist:portable": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "44.2.0",
+    "electron-builder": "^26.15.3"
+  }
+}

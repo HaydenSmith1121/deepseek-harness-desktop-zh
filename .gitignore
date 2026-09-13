@@ -1,0 +1,40 @@
+# 依赖
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# 打包产物
+dist/
+release/
+out/
+*.blockmap
+*.nsis.7z
+
+# 运行时产生的数据
+.self-test/
+.userdata/
+logs/
+test-output.log
+
+# 本地冒烟测试残留（肉眼验收用，不入库）
+.smoke/
+smoke-console.log
+
+# 内置的 dsh 运行时（构建时由 scripts/fetch-dsh.mjs 拉取，不纳入版本库）
+# 注意用 vendor/dsh/* 而非 vendor/dsh/：后者会把目录整体排除，
+# 导致下面的 !.gitkeep 负向规则失效（Git 无法重新包含被排除目录内的文件）。
+vendor/dsh/*
+!vendor/dsh/.gitkeep
+
+# 图标生成的中间产物
+build/icons/
+
+# 编辑器与系统
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp

@@ -1,0 +1,123 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      build_all_platforms:
+        description: 同时尝试构建 macOS / Linux（尚未实机验证）
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 单元测试：运行时探测 / 就绪解析 / 设置 / 窗口状态 ──────────────────────
+  test:
+    name: 单元测试
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: 安装依赖
+        run: npm ci
+        env:
+          # 测试不需要 Electron 二进制，跳过下载以加速 CI
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - name: 运行测试
+        run: npm test
+      - name: 校验图标生成脚本
+        run: npm run icons
+
+  # ── Windows 产物：安装包 + 绿色版，并对打包后的应用做真实启动自检 ──────────
+  build-windows:
+    name: Windows 产物
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 拉取内置 dsh 运行时
+        run: npm run fetch:dsh
+
+      - name: 打包（NSIS 安装包 + portable + zip）
+        run: npx electron-builder --win --publish never
+
+      - name: 对打包产物做端到端自检
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $exe = "release\win-unpacked\DeepSeekHarnessDesktop.exe"
+          if (-not (Test-Path $exe)) { throw "未找到打包产物：$exe" }
+          & $exe --self-test --user-data-dir="$PWD\.ci-userdata"
+          $code = $LASTEXITCODE
+          if ($code -ne 0) { throw "打包产物自检失败，退出码 $code" }
+          Write-Host "打包产物自检通过 ✅"
+
+      - name: 上传自检截图与报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: self-test-report
+          path: .self-test/
+          if-no-files-found: ignore
+
+      - name: 上传安装包与绿色版
+        uses: actions/upload-artifact@v4
+        with:
+          name: deepseek-harness-desktop-windows
+          path: |
+            release/*.exe
+            release/*.zip
+            release/*.blockmap
+          if-no-files-found: error
+
+  # ── 其它平台：仅手动触发时运行，尚未实机验证 ─────────────────────────────
+  build-others:
+    name: ${{ matrix.label }}
+    if: github.event_name == 'workflow_dispatch' && inputs.build_all_platforms
+    needs: test
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            label: macOS 产物（实验）
+            args: --mac
+          - os: ubuntu-latest
+            label: Linux 产物（实验）
+            args: --linux
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run fetch:dsh
+      - run: npx electron-builder ${{ matrix.args }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dsh-desktop-${{ matrix.os }}
+          path: release/*
+          if-no-files-found: warn
