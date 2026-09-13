@@ -20,6 +20,14 @@ test-output.log
 # 本地冒烟测试残留（肉眼验收用，不入库）
 .smoke/
 smoke-console.log
+.self-test/
+.self-test-bare/
+.self-test-*.txt
+.pkg-userdata/
+.pkg-userdata2/
+.ud*/
+.ci-userdata/
+.ci-userdata-bare/
 
 # 内置的 dsh 运行时（构建时由 scripts/fetch-dsh.mjs 拉取，不纳入版本库）
 # 注意用 vendor/dsh/* 而非 vendor/dsh/：后者会把目录整体排除，
