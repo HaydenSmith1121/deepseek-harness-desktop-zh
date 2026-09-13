@@ -67,10 +67,13 @@ jobs:
         run: |
           $exe = "release\win-unpacked\DeepSeekHarnessDesktop.exe"
           if (-not (Test-Path $exe)) { throw "未找到打包产物：$exe" }
-          & $exe --self-test --user-data-dir="$PWD\.ci-userdata"
+          # 打包态默认把自检产物写进 userData；这里显式指到工作区，方便下面上传
+          & $exe --self-test --self-test-out="$PWD\.self-test" --user-data-dir="$PWD\.ci-userdata"
           $code = $LASTEXITCODE
           if ($code -ne 0) { throw "打包产物自检失败，退出码 $code" }
           Write-Host "打包产物自检通过 ✅"
+          $report = Get-Content "$PWD\.self-test\self-test-report.json" -Raw | ConvertFrom-Json
+          Write-Host "标题=$($report.page.title) 节点数=$($report.page.nodeCount) 检查项=$($report.checks.Count) 截图=$($report.screenshots.Count)"
 
       - name: 上传自检截图与报告
         if: always()
@@ -89,6 +92,29 @@ jobs:
             release/*.zip
             release/*.blockmap
           if-no-files-found: error
+
+  # ── 打 tag（v*）时把产物发成 Release，README 里的下载链接就指向这里 ────────
+  release:
+    name: 发布 Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: deepseek-harness-desktop-windows
+          path: artifacts
+      - name: 创建 Release 并附带安装包 / 绿色版
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "DeepSeek Harness 桌面端 $GITHUB_REF_NAME" \
+            --generate-notes \
+            artifacts/*.exe artifacts/*.zip artifacts/*.blockmap
 
   # ── 其它平台：仅手动触发时运行，尚未实机验证 ─────────────────────────────
   build-others:

@@ -48,6 +48,34 @@ const CRASH_BACKOFF = [2000, 5000, 15000];
 const CRASH_WINDOW_MS = 10 * 60 * 1000;
 const MAX_AUTO_RESTARTS = 3;
 
+/** 读取 `--key=value` / `--key value` 形式的参数值，没有则返回 null。 */
+function readFlagValue(name) {
+  const inline = rawArgs.find((arg) => arg.startsWith(`${name}=`));
+  if (inline) return inline.slice(name.length + 1) || null;
+  const index = rawArgs.indexOf(name);
+  const next = index === -1 ? null : rawArgs[index + 1];
+  return next && !next.startsWith('--') ? next : null;
+}
+
+/**
+ * 自检产物的落盘目录。
+ *
+ * 打包后 `app.getAppPath()` 指向 `resources/app.asar` —— 那是一个**文件**，
+ * 在它下面建目录会直接抛 ENOTDIR；即便换成 exe 同级目录，装到
+ * `C:\Program Files\` 之类的只读位置也写不进去。
+ *
+ * 因此优先级：`--self-test-out=<dir>` 显式指定 → 打包态用 userData →
+ * 开发态用仓库根的 `.self-test/`（与 .gitignore、README 一致）。
+ */
+function resolveSelfTestDir(sub) {
+  const explicit = readFlagValue('--self-test-out');
+  if (explicit) return path.resolve(explicit);
+  const base = app.isPackaged
+    ? path.join(app.getPath('userData'), 'self-test')
+    : path.join(APP_ROOT, '.self-test');
+  return path.join(base, sub);
+}
+
 // 自检与 CI 环境通常没有可用 GPU，Chromium 的 GPU 进程会直接 fatal。
 // 只在无头场景降级，正常桌面启动保持默认的沙箱与硬件加速。
 if (selfTestMode || flags.has('--headless')) {
@@ -647,7 +675,7 @@ function applyLoginItem() {
 
 // ── 自检流程 ────────────────────────────────────────────────────────────────
 async function runUiSelfTest() {
-  const outDir = path.join(APP_ROOT, '.self-test', 'ui');
+  const outDir = resolveSelfTestDir('ui');
   selfTest = createSelfTest({ mode: 'ui', outDir, logger });
   const win = ensureMainWindow();
   const states = [
@@ -670,7 +698,7 @@ async function runUiSelfTest() {
 }
 
 async function runFullSelfTest() {
-  const outDir = path.join(APP_ROOT, '.self-test', 'full');
+  const outDir = resolveSelfTestDir('full');
   selfTest = createSelfTest({ mode: 'full', outDir, logger });
   selfTest.attachSession(session.fromPartition('persist:dsh-desktop'));
 

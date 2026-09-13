@@ -165,6 +165,10 @@ function createSelfTest({ mode, outDir, logger }) {
     fs.writeFileSync(file, `${JSON.stringify(report, null, 2)}\n`);
 
     const failed = report.checks.filter((item) => !item.ok);
+    // requestFailures 混了两类：带 status 的真正接口失败，和导航切换时被中断的请求
+    //（ERR_ABORTED）。分开计数，避免"请求失败 9"这种看着吓人其实无害的数字。
+    const apiFailures = report.requestFailures.filter((item) => typeof item.status === 'number');
+    const aborted = report.requestFailures.filter((item) => typeof item.status !== 'number');
     const summary = [
       '',
       '════════ 自检报告 ════════',
@@ -174,7 +178,7 @@ function createSelfTest({ mode, outDir, logger }) {
       `页面标题    : ${report.page?.title ?? '—'}`,
       `最终地址    : ${report.page?.url ?? '—'}`,
       `console 错误: ${report.console.filter((c) => c.level === 'error').length}`,
-      `请求失败    : ${report.requestFailures.length}`,
+      `请求失败    : ${apiFailures.length} 条接口级 / ${aborted.length} 条导航中断（无害）`,
       `截图        : ${report.screenshots.length} 张 → ${outDir}`,
       '═════════════════════════',
       '',

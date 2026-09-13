@@ -116,6 +116,8 @@ npm run fetch:dsh        # 准备内置运行时到 vendor/dsh
 npm run dist             # 打包安装包 + portable + zip 到 release/
 ```
 
+自检产物默认落在 `.self-test/`：开发态是仓库根，打包态是应用数据目录（被打包进 `app.asar` 的目录是只读的，写不进去）。需要指定位置时加 `--self-test-out=<目录>`。
+
 端到端自检会输出一份可读报告，退出码即结论：
 
 ```
@@ -126,6 +128,7 @@ npm run dist             # 打包安装包 + portable + zip 到 release/
 页面标题    : DeepSeek Harness
 最终地址    : http://127.0.0.1:57225/
 console 错误: 0
+请求失败    : 0 条接口级 / 9 条导航中断（无害）
 截图        : 3 张 → .self-test/full
 ═════════════════════════
 ```
