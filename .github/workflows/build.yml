@@ -61,26 +61,57 @@ jobs:
       - name: 打包（NSIS 安装包 + portable + zip）
         run: npx electron-builder --win --publish never
 
+      - name: 检查打包产物里是否带上了内置 dsh
+        shell: pwsh
+        run: |
+          $res = "release\win-unpacked\resources"
+          Write-Host "resources/ 下的条目："
+          Get-ChildItem $res | Select-Object -ExpandProperty Name | ForEach-Object { Write-Host "  - $_" }
+          $entry = Join-Path $res "dsh\node_modules\@deepseek-ai\dsh\lib\bin.js"
+          if (-not (Test-Path $entry)) { throw "打包产物里缺少内置 dsh 运行时：$entry" }
+          Write-Host "内置 dsh 入口就位：$entry"
+
       - name: 对打包产物做端到端自检
         timeout-minutes: 10
         shell: pwsh
         run: |
           $exe = "release\win-unpacked\DeepSeekHarnessDesktop.exe"
           if (-not (Test-Path $exe)) { throw "未找到打包产物：$exe" }
-          # 打包态默认把自检产物写进 userData；这里显式指到工作区，方便下面上传
-          & $exe --self-test --self-test-out="$PWD\.self-test" --user-data-dir="$PWD\.ci-userdata"
-          $code = $LASTEXITCODE
-          if ($code -ne 0) { throw "打包产物自检失败，退出码 $code" }
+
+          $outDir = "$PWD\.self-test"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+
+          # 关键：Electron 是 GUI 子系统程序，PowerShell 的 & 调用**不会等待**它结束，
+          # $LASTEXITCODE 会是 $null，于是"退出码非 0"的判断会误报失败。
+          # 必须用 Start-Process -Wait 才能拿到真实退出码。
+          $p = Start-Process -FilePath $exe -Wait -PassThru `
+            -ArgumentList "--self-test", "--self-test-out=$outDir", "--user-data-dir=$PWD\.ci-userdata" `
+            -RedirectStandardOutput "$PWD\.self-test-stdout.txt" `
+            -RedirectStandardError "$PWD\.self-test-stderr.txt"
+
+          Write-Host "──── stdout ────"
+          Get-Content "$PWD\.self-test-stdout.txt" -ErrorAction SilentlyContinue | Write-Host
+          Write-Host "──── stderr ────"
+          Get-Content "$PWD\.self-test-stderr.txt" -ErrorAction SilentlyContinue | Write-Host
+
+          if ($p.ExitCode -ne 0) { throw "打包产物自检失败，退出码 $($p.ExitCode)" }
           Write-Host "打包产物自检通过 ✅"
-          $report = Get-Content "$PWD\.self-test\self-test-report.json" -Raw | ConvertFrom-Json
-          Write-Host "标题=$($report.page.title) 节点数=$($report.page.nodeCount) 检查项=$($report.checks.Count) 截图=$($report.screenshots.Count)"
+
+          $json = Join-Path $outDir "self-test-report.json"
+          if (Test-Path $json) {
+            $report = Get-Content $json -Raw | ConvertFrom-Json
+            Write-Host "标题=$($report.page.title) 节点数=$($report.page.nodeCount) 检查项=$($report.checks.Count) 截图=$($report.screenshots.Count)"
+          }
 
       - name: 上传自检截图与报告
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: self-test-report
-          path: .self-test/
+          path: |
+            .self-test/
+            .self-test-stdout.txt
+            .self-test-stderr.txt
           if-no-files-found: ignore
 
       - name: 上传安装包与绿色版
