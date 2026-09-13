@@ -103,6 +103,35 @@ jobs:
             Write-Host "标题=$($report.page.title) 节点数=$($report.page.nodeCount) 检查项=$($report.checks.Count) 截图=$($report.screenshots.Count)"
           }
 
+      - name: 空机器自检（无 Node、无 dsh，只靠内置运行时）
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $exe = "release\win-unpacked\DeepSeekHarnessDesktop.exe"
+          $outDir = "$PWD\.self-test-bare"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+
+          # 把 node/npm 从 PATH 里摘掉，模拟"目标机器什么都没装"，
+          # 强制走 Electron 自带 Node + 内置 dsh 副本这条兜底链路。
+          # 这条路径必须单独跑：上面那次自检用的是 setup-node 装的系统 Node。
+          $savedPath = $env:PATH
+          $env:PATH = "C:\Windows\system32;C:\Windows"
+
+          $p = Start-Process -FilePath $exe -Wait -PassThru `
+            -ArgumentList "--self-test", "--self-test-out=$outDir", "--user-data-dir=$PWD\.ci-userdata-bare" `
+            -RedirectStandardOutput "$PWD\.self-test-bare-stdout.txt" `
+            -RedirectStandardError "$PWD\.self-test-bare-stderr.txt"
+
+          $env:PATH = $savedPath
+
+          Write-Host "──── stdout ────"
+          Get-Content "$PWD\.self-test-bare-stdout.txt" -ErrorAction SilentlyContinue | Write-Host
+          Write-Host "──── stderr ────"
+          Get-Content "$PWD\.self-test-bare-stderr.txt" -ErrorAction SilentlyContinue | Write-Host
+
+          if ($p.ExitCode -ne 0) { throw "空机器自检失败，退出码 $($p.ExitCode)" }
+          Write-Host "空机器自检通过 ✅（完全依赖内置运行时）"
+
       - name: 上传自检截图与报告
         if: always()
         uses: actions/upload-artifact@v4
@@ -110,8 +139,11 @@ jobs:
           name: self-test-report
           path: |
             .self-test/
+            .self-test-bare/
             .self-test-stdout.txt
             .self-test-stderr.txt
+            .self-test-bare-stdout.txt
+            .self-test-bare-stderr.txt
           if-no-files-found: ignore
 
       - name: 上传安装包与绿色版

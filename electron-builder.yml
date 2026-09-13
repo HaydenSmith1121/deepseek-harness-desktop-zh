@@ -16,13 +16,25 @@ files:
   - '!**/.gitkeep'
 
 # 内置的 dsh 运行时（构建期由 scripts/fetch-dsh.mjs 准备）
-# 有了它，即使目标机器没装 Node 和 dsh，应用也能自己跑起来
+# 有了它，即使目标机器没装 Node 和 dsh，应用也能自己跑起来。
+#
+# 为什么要拆成两条？electron-builder 会把「复制源根部的 node_modules」无条件排除
+# （见 app-builder-lib/out/util/filter.js: `if (relative === "node_modules") return false;`，
+# 对应 electron-builder issue #867），任何 filter 写法都覆盖不掉。而 vendor/dsh 是
+# 个自包含壳项目，它的 node_modules 恰好就在根部——单条 extraResources 只会拷到
+# package.json，运行时整个丢失，应用于是静默回退到 npx。
+# 把 node_modules 单独作为一条的复制源后，其内部相对路径不再以 node_modules 开头，
+# 就能正常被拷贝；嵌套的 */node_modules 本来就不受影响。
 extraResources:
   - from: vendor/dsh
     to: dsh
     filter:
       - '**/*'
       - '!.gitkeep'
+  - from: vendor/dsh/node_modules
+    to: dsh/node_modules
+    filter:
+      - '**/*'
 
 win:
   icon: build/icon.ico

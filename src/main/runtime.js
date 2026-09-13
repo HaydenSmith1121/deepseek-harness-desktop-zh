@@ -349,11 +349,17 @@ async function buildLaunchPlan(options = {}) {
 
   const args = buildDshArgs({ host, port, extraArgs: settings.extraArgs });
 
+  // 用 Electron 自带的 Node 运行时（"目标机器没装 Node"时的兜底路径）必须显式带上
+  // --expose-internals：dsh 的 HMR 插件会校验这个 Node 标志，缺失就直接抛错退出
+  // （实测报 "failed to apply loader entry (@deepseek-ai/cordis-plugin-hmr):
+  //  --expose-internals is required for HMR service"）。用系统 Node 时不需要。
+  const nodeFlags = node.electron ? ['--expose-internals'] : [];
+
   /** @type {any} */
   const plan = {
     kind: 'node',
     file: node.file,
-    argv: [dsh.binPath, ...args],
+    argv: [...nodeFlags, dsh.binPath, ...args],
     port,
     host,
     cwd: dsh.dir,
