@@ -58,7 +58,7 @@ jobs:
       - name: 拉取内置 dsh 运行时
         run: npm run fetch:dsh
 
-      - name: 打包（NSIS 安装包 + portable + zip）
+      - name: 打包（NSIS 安装包 + zip 免安装版）
         run: npx electron-builder --win --publish never
 
       - name: 检查打包产物里是否带上了内置 dsh
@@ -103,6 +103,40 @@ jobs:
             Write-Host "标题=$($report.page.title) 节点数=$($report.page.nodeCount) 检查项=$($report.checks.Count) 截图=$($report.screenshots.Count)"
           }
 
+      - name: 解压 zip 免安装版并自检（真正交付给用户的产物）
+        # 这一步不能省：win-unpacked 是构建过程中已经躺在磁盘上的目录，从它启动
+        # 不涉及任何解压。用户拿到的 zip 必须解压后再验一遍才算数。
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem "release\*.zip" | Select-Object -First 1
+          if (-not $zip) { throw "未找到 zip 免安装产物" }
+          Write-Host "待验产物：$($zip.Name)（$([math]::Round($zip.Length / 1MB)) MB）"
+
+          $target = "$PWD\zip-unpacked"
+          Expand-Archive -Path $zip.FullName -DestinationPath $target -Force
+
+          $exe = Join-Path $target "DeepSeekHarnessDesktop.exe"
+          if (-not (Test-Path $exe)) { throw "zip 内未找到主程序：$exe" }
+          $entry = Join-Path $target "resources\dsh\node_modules\@deepseek-ai\dsh\lib\bin.js"
+          if (-not (Test-Path $entry)) { throw "zip 内缺少内置 dsh 运行时：$entry" }
+
+          $outDir = "$PWD\.self-test-zip"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+
+          $sw = [System.Diagnostics.Stopwatch]::StartNew()
+          $p = Start-Process -FilePath $exe -Wait -PassThru `
+            -ArgumentList "--self-test", "--self-test-out=$outDir", "--user-data-dir=$PWD\.ci-userdata-zip" `
+            -RedirectStandardOutput "$PWD\.self-test-zip-stdout.txt" `
+            -RedirectStandardError "$PWD\.self-test-zip-stderr.txt"
+          $sw.Stop()
+
+          Get-Content "$PWD\.self-test-zip-stdout.txt" -ErrorAction SilentlyContinue | Write-Host
+          Get-Content "$PWD\.self-test-zip-stderr.txt" -ErrorAction SilentlyContinue | Write-Host
+
+          if ($p.ExitCode -ne 0) { throw "zip 免安装版自检失败，退出码 $($p.ExitCode)" }
+          Write-Host "zip 免安装版自检通过，耗时 $([math]::Round($sw.Elapsed.TotalSeconds, 1)) 秒"
+
       - name: 空机器自检（无 Node、无 dsh，只靠内置运行时）
         timeout-minutes: 10
         shell: pwsh
@@ -140,10 +174,13 @@ jobs:
           path: |
             .self-test/
             .self-test-bare/
+            .self-test-zip/
             .self-test-stdout.txt
             .self-test-stderr.txt
             .self-test-bare-stdout.txt
             .self-test-bare-stderr.txt
+            .self-test-zip-stdout.txt
+            .self-test-zip-stderr.txt
           if-no-files-found: ignore
 
       - name: 上传安装包与绿色版

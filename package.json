@@ -39,8 +39,7 @@
     "self-test": "electron . --self-test",
     "self-test:ui": "electron . --self-test-ui",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder --win",
-    "dist:portable": "electron-builder --win portable"
+    "dist": "electron-builder --win"
   },
   "devDependencies": {
     "electron": "44.2.0",

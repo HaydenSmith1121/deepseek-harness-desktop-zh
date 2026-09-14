@@ -83,10 +83,13 @@ Grab one from [Releases](https://github.com/HaydenSmith1121/deepseek-harness-des
 | File | Notes |
 | --- | --- |
 | `DSH-Desktop-Setup-x.y.z.exe` | NSIS installer with Start Menu and uninstaller |
-| `DSH-Desktop-x.y.z-portable.exe` | Single-file portable, double-click to run |
-| `DSH-Desktop-x.y.z-win-x64.zip` | Portable zip, fastest startup |
+| `DSH-Desktop-x.y.z-win-x64.zip` | Portable archive — unzip it, then run `DeepSeekHarnessDesktop.exe` |
 
 These builds bundle the dsh runtime, so **they work on a machine with no Node and no dsh installed**.
+
+> Unzip first. Launching the exe straight from inside the archive makes Windows extract the whole
+> app to a temp folder on every launch (~3 minutes of blank screen), and leaves roughly 800 MB of
+> residue behind each time. That is why this project ships no single-file portable build.
 
 ### From source
 
@@ -106,7 +109,7 @@ npm test                 # 34 unit tests
 npm run self-test:ui     # render every boot-screen state and screenshot it
 npm run self-test        # end-to-end: really starts dsh, loads the official UI, screenshots
 npm run fetch:dsh        # prepare the bundled runtime into vendor/dsh
-npm run dist             # build installer + portable + zip into release/
+npm run dist             # build installer + portable zip into release/
 ```
 
 ## Project layout

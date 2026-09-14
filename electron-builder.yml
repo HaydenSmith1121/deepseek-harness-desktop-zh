@@ -40,16 +40,18 @@ win:
   icon: build/icon.ico
   executableName: DeepSeekHarnessDesktop
   # zip 目标在 electron-builder 里没有专属配置节，用 win 级 artifactName 兜底命名；
-  # nsis / portable 各自有 artifactName，会覆盖这里的值。
+  # nsis 有自己的 artifactName，会覆盖这里的值。
+  #
+  # 不再提供 portable 目标：它是 NSIS 单文件自解压，每次启动都要把整个应用
+  # （含内置的 dsh 运行时，约 500MB / 上万个文件）重新解压到 %TEMP%，
+  # 实测约需 3 分钟且期间没有任何窗口；退出后 NSIS 暂存目录还不回收。
+  # zip 解压一次即可长期秒开，详见 docs/COMPATIBILITY.md。
   artifactName: DSH-Desktop-${version}-win-${arch}.${ext}
   target:
     # 安装包
     - target: nsis
       arch: [x64]
-    # 免安装绿色版（单文件可执行）
-    - target: portable
-      arch: [x64]
-    # 免安装绿色版（解压目录，启动更快）
+    # 免安装解压版：解压一次即可，后续启动无需再解压
     - target: zip
       arch: [x64]
 
@@ -63,10 +65,6 @@ nsis:
   uninstallDisplayName: DeepSeek Harness 桌面端
   deleteAppDataOnUninstall: false
   artifactName: DSH-Desktop-Setup-${version}.${ext}
-
-portable:
-  artifactName: DSH-Desktop-${version}-portable.${ext}
-  unicode: true
 
 # 预留：macOS / Linux 目标（尚未实机验证，仅用于后续扩展）
 mac:

@@ -90,10 +90,13 @@ dsh web: http://127.0.0.1:52021/?token=VyniA5RvfDmzPKbLyvfs9M8Y8rL8WcjixK8_sW_l6
 | 文件 | 说明 |
 | --- | --- |
 | `DSH-Desktop-Setup-x.y.z.exe` | 安装包，带开始菜单与卸载入口 |
-| `DSH-Desktop-x.y.z-portable.exe` | 免安装单文件，双击即用 |
-| `DSH-Desktop-x.y.z-win-x64.zip` | 免安装解压版，启动最快 |
+| `DSH-Desktop-x.y.z-win-x64.zip` | 免安装解压版，解压后双击 `DeepSeekHarnessDesktop.exe` 即可 |
 
 内置版已经带上 dsh 运行时，**目标机器不装 Node、不装 dsh 也能直接跑**。
+
+解压版需要**先解压**，请不要直接双击压缩包里的 exe：那样 Windows 会把它释放到临时目录运行，
+每次启动都要重解压一遍（实测约 3 分钟且期间没有任何窗口），退出后还会在临时目录留下约 800MB 残留。
+这是本项目不再提供单文件便携版（portable）的原因 —— 解压一次远比每次都解压划算。
 
 ### 从源码运行
 
@@ -113,7 +116,7 @@ npm test                 # 34 项单元测试
 npm run self-test:ui     # 渲染引导页各状态并截图（无需真实 harness）
 npm run self-test        # 端到端：真的拉起 dsh、加载官方界面、截图并输出报告
 npm run fetch:dsh        # 准备内置运行时到 vendor/dsh
-npm run dist             # 打包安装包 + portable + zip 到 release/
+npm run dist             # 打包安装包 + 免安装 zip 到 release/
 ```
 
 自检产物默认落在 `.self-test/`：开发态是仓库根，打包态是应用数据目录（被打包进 `app.asar` 的目录是只读的，写不进去）。需要指定位置时加 `--self-test-out=<目录>`。
